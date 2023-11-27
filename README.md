@@ -111,3 +111,41 @@ tolerations:
 
 Doc Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
 
+### Scenario-4
+
+Question: Create a pod "nginx-cka" using image "nginx" and initContainer "git-cka" with image "alpine/git".
+Volume mount path of the main container "/usr/share/nginx/html".
+Nginx index.html need to be override with shared volume. index.html file cloned from path
+"https://github.com/jhawithu/k8s-nginx.git".
+
+Pod yaml:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-cka
+spec:
+  containers:
+    - name: nginx
+      image: nginx:alpine
+      ports:
+      - containerPort: 80
+      volumeMounts:
+        - name: data
+          mountPath: /usr/share/nginx/html
+  initContainers:
+    - name: git-k8s
+      image: alpine/git
+      args:
+      - clone
+      - --single-branch
+      - --
+      - https://github.com/jhawithu/k8s-nginx.git
+      - /data
+      volumeMounts:
+      - mountPath: /data
+        name: data
+  volumes:
+    - name: data
+      emptyDir: {}
+```
