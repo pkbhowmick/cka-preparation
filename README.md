@@ -74,3 +74,40 @@ kubectl config set-credentials pulak --client-key=pulak.key --client-certificate
 kubectl config set-context pulak --cluster=kubernetes --user=pulak
 kubectl config use-context pulak
 ```
+
+### Scenario-3
+
+Scenario: A pod is not running state because of available nodes have some taints. Fix it.
+
+To simulate the process:
+
+1. Add taint to nodes:
+
+```bash
+kubectl taint nodes node1 key1=value1:NoSchedule
+```
+
+2. Create deployment and pod should be pending because of the taint.
+```bash
+kubectl create deploy nginx --image=nginx:alpine
+```
+
+3. Edit deploy to tolerate the taint:
+
+```yaml
+tolerations:
+- key: "key1"
+  operator: "Equal"
+  value: "value1"
+  effect: "NoSchedule"
+
+## or
+
+tolerations:
+- key: "key1"
+  operator: "Exists"
+  effect: "NoSchedule"
+```
+
+Doc Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+
