@@ -212,3 +212,41 @@ systemctl restart kubelet
 ```bash
 kubectl uncordon <node-name>
 ```
+
+### Scenario-6
+
+Question: Create a new pod called "admin-pod" with image busybox. Allow the pod to be able to set system_time.
+
+The container should sleep for 3200 seconds.
+
+1. Create pod yaml using imperative style:
+
+```bash
+kubectl run admin-pod --image=busybox --command sleep 3200 --dry-run=client -o yaml
+```
+
+2. Add capabilities to container
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: admin-pod
+  name: admin-pod
+spec:
+  containers:
+  - command:
+    - sleep
+    - "3200"
+    image: busybox
+    name: admin-pod
+    securityContext:
+      capabilities:
+        add: ["SYS_TIME"]
+```
+
+Doc Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+
+
+
