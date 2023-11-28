@@ -149,3 +149,66 @@ spec:
     - name: data
       emptyDir: {}
 ```
+
+### Scenario-5
+
+Question: Upgrade k8s cluster version from 1.27.x to 1.28.x
+
+1. Install Kubeadm
+
+```bash
+apt update
+apt install kubeadm=1.28.0-00
+```
+
+2. Drain controlplane
+
+```bash
+kubectl drain controlplane --ignore-daemonsets
+```
+
+3. Upgrade controlplane node
+   
+```bash
+kubeadm upgrade apply v1.28.2
+```
+
+4. Update and restart kubectl
+
+```bash
+apt install kubelet=1.28.2-00
+systemctl restart kubelet
+```
+
+5. Uncordon controlplane
+
+```bash
+kubectl uncordon controlplane
+```
+
+For each worker node:
+
+6. Drain the node
+
+```bash
+kubectl drain <node-name> --ignore-daemonsets
+```
+
+7. Upgrade worker node
+
+```bash
+kubeadm upgrade node
+```
+
+8. Upgrade & restart kubelet
+
+```bash
+apt install kubelet=1.28.2-00
+systemctl restart kubelet
+```
+
+9. Uncordon the node
+
+```bash
+kubectl uncordon <node-name>
+```
