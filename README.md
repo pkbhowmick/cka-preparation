@@ -248,5 +248,61 @@ spec:
 
 Doc Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
 
+### Scenario-7
 
+Question: Create a namespace "devops" and create a NetworkPolicy that blocks all trafic to pods in
+devops namespace, except for traffic from pods in the same namespace on port 8080.
 
+1. Create namespace with a label:
+
+```bash
+kubectl create ns devops
+kubectl label ns app=devops
+kubectl get ns devops --show-labels
+```
+
+2. Create NetworkPolicy yaml:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: devops-np
+  namespace: devops
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app: devops
+      ports:
+        - protocol: TCP
+          port: 8080
+```
+
+### Scenario-8
+
+Create a NetworkPolicy that denies all access to to the payroll Pod in the accounting namespace.
+
+1. Create network policy assuming the payroll pod has app=payroll label.
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: payroll-network-policy
+  namespace: accounting
+spec:
+  podSelector:
+    matchLabels:
+      app: payroll
+  policyTypes:
+    - Ingress
+    - Egress
+```
+Note: No rule for Ingress & Egress means all denied.
+
+Doc Ref: https://kubernetes.io/docs/concepts/services-networking/network-policies/
