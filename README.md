@@ -306,3 +306,79 @@ spec:
 Note: No rule for Ingress & Egress means all denied.
 
 Doc Ref: https://kubernetes.io/docs/concepts/services-networking/network-policies/
+
+### Scenario-9
+
+Setup Liveness, Readiness & Startup Probes
+
+Liveness probe example:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    test: liveness
+  name: liveness-exec
+spec:
+  containers:
+  - name: liveness
+    image: registry.k8s.io/busybox
+    args:
+    - /bin/sh
+    - -c
+    - touch /tmp/healthy; sleep 30; rm -f /tmp/healthy; sleep 600
+    livenessProbe:
+      exec:
+        command:
+        - cat
+        - /tmp/healthy
+      initialDelaySeconds: 5
+      periodSeconds: 5
+```
+kubelet will restart the pod if liveness probe fails.
+
+Readiness probe example:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    test: readiness
+  name: readiness-exec
+spec:
+  containers:
+  - name: readiness
+    image: registry.k8s.io/busybox
+    args:
+    - /bin/sh
+    - -c
+    - touch /tmp/healthy; sleep 30; rm -f /tmp/healthy; sleep 600
+    readinessProbe:
+      exec:
+        command:
+        - cat
+        - /tmp/healthy
+      initialDelaySeconds: 5
+      periodSeconds: 5
+```
+
+readiness probes are configured exactly same way as liveness probes.
+
+kubelet won't restart the pod in this case rather marks the pod as Not Ready.
+So, the service won't send any traffic to this unhealthy pod.
+
+Startup probe example:
+
+```yaml
+startupProbe:
+  httpGet:
+    path: /healthz
+    port: liveness-port
+  failureThreshold: 30
+  periodSeconds: 10
+```
+
+Startup probe will save the lazy applications from liveness probe failure. It will give apps
+some breathing room at the startup before liveness probe check starts.
