@@ -382,3 +382,44 @@ startupProbe:
 
 Startup probe will save the lazy applications from liveness probe failure. It will give apps
 some breathing room at the startup before liveness probe check starts.
+
+### Scenario-10
+
+Question: Create a pod with name `project-tiger` of image `httpd:2.4.41-alpine`. Find out in which node the pod in scheduled. 
+Using command `crictl`, findout:
+
+1. info.runtimeType of the pod
+2. container logs
+
+Solution:
+
+1. Run the pod and find the node
+
+```bash
+k run project-tiger --image=httpd:2.4.41-alpine
+```
+
+2. ssh into that node and find the container id
+
+```bash
+$ crictl ps | grep project-tiger
+030b066c10cb3       54b0995a63052       50 seconds ago      Running             project-tiger       0           ed43bf9847f06       project-tiger
+```
+
+3. copy the container id & inspect the runtimeType
+
+```bash
+$ crictl inspect 030b066c10cb3 | grep runtimeType
+    "runtimeType": "io.containerd.runc.v2",
+```
+
+4. check the logs using `crictl logs`
+
+```bash
+$ crictl logs 030b066c10cb3
+AH00558: httpd: Could not reliably determine the server's fully qualified domain name, using 192.168.1.3. Set the 'ServerName' directive globally to suppress this message
+AH00558: httpd: Could not reliably determine the server's fully qualified domain name, using 192.168.1.3. Set the 'ServerName' directive globally to suppress this message
+[Wed Dec 06 08:22:44.832652 2023] [mpm_event:notice] [pid 1:tid 139768630623560] AH00489: Apache/2.4.41 (Unix) configured -- resuming normal operations
+[Wed Dec 06 08:22:44.832899 2023] [core:notice] [pid 1:tid 139768630623560] AH00094: Command line: 'httpd -D FOREGROUND'
+```
+
