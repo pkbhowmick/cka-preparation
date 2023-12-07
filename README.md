@@ -481,3 +481,86 @@ node01 $ systemctl daemon-reload & systemctl restart kubelet
 [1] 34600
 Warning: The unit file, source configuration file or drop-ins of kubelet.service changed on disk. Run 'systemctl daemon-reload' to reload units.
 ```
+
+### Scenario-12
+
+Question: Create a pod name `secret-pod` of image `busybox:1.31.1` which should keep running for some time.
+
+Secret1 yaml is provided below. Create it and mount into the pod at `/tmp/secret`
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret1
+data:
+  somedata: UG91cmluZzYlRW1vdGljb24lU2N1YmE=    
+```
+
+Create a secret `secret2` which should contain user=pulak, pass=1234. These entries should be available inside the pod
+as APP_USER and APP_PASS env.
+
+Solution:
+
+1. Create the pod
+
+```bash
+k run secret-pod --image=busybox:1.31.1 sleep 1d
+```
+
+2. Create the secret from the above yaml
+
+```bash
+controlplane $ cat 12.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret1
+data:
+  somedata: UG91cmluZzYlRW1vdGljb24lU2N1YmE=
+controlplane $ k apply -f 12.yaml
+secret/secret1 created
+```
+
+3. Create the other secret `secret2`
+
+```bash
+k create secret generic secret2 --from-literal="user=pulak" --from-literal="pass=1234"
+```
+
+4. Update pod with secret ref. Key parts that will be added:
+
+```yaml
+apiVersion: v1
+kind: Pod
+...
+...
+spec:
+  volumes:
+    - name: secret-volume
+      secret:
+        secretName: secret1
+  
+  containers:
+  - name: container1
+    ...
+    ...
+    volumeMounts:
+    - name: secret-volume
+      readOnly: true
+      mountPath: "/tmp/secret"
+    env:
+    - name: APP_USER
+      valueFrom:
+        secretKeyRef:
+          name: secret2
+          key: user
+    - name: APP_PASS
+      valueFrom:
+        secretKeyRef:
+          name: secret2
+          key: pass
+```
+
+Doc Ref: https://kubernetes.io/docs/concepts/configuration/secret/
+
