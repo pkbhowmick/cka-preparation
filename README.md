@@ -423,3 +423,61 @@ AH00558: httpd: Could not reliably determine the server's fully qualified domain
 [Wed Dec 06 08:22:44.832899 2023] [core:notice] [pid 1:tid 139768630623560] AH00094: Command line: 'httpd -D FOREGROUND'
 ```
 
+### Scenario-11
+
+Question: One of the nodes is in NotReady state because of the kubelet. Fix the issue and make the node as Ready state.
+
+1. Check the nodes
+
+```bash
+controlplane $ k get nodes
+NAME           STATUS     ROLES           AGE   VERSION
+controlplane   Ready      control-plane   22d   v1.28.1
+node01         NotReady   <none>          22d   v1.28.1
+```
+
+2. ssh into node01 & check the kubelet status. In error scenario kubelet status won't be active.
+
+```bash
+node01 $ systemctl status kubelet
+● kubelet.service - kubelet: The Kubernetes Node Agent
+     Loaded: loaded (/lib/systemd/system/kubelet.service; enabled; vendor preset: enabled)
+    Drop-In: /etc/systemd/system/kubelet.service.d
+             └─10-kubeadm.conf
+     Active: active (running) since Tue 2023-11-14 10:59:39 UTC; 3 weeks 1 days ago
+       Docs: https://kubernetes.io/docs/home/
+   Main PID: 26490 (kubelet)
+      Tasks: 11 (limit: 2339)
+     Memory: 37.2M
+     CGroup: /system.slice/kubelet.service
+             └─26490 /usr/bin/kubelet --bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kub>
+
+Dec 07 06:31:27 node01 kubelet[26490]: I1207 06:31:27.604142   26490 reconciler_common.go:300] "Volume detached for volum>
+```
+
+3. Make sure kubelet is running with proper binary path
+
+```bash
+node01 $ whereis kubelet
+kubelet: /usr/bin/kubelet
+node01 $ cat /etc/systemd/system/kubelet.service.d/10-kubeadm.conf 
+# Note: This dropin only works with kubeadm and kubelet v1.11+
+[Service]
+Environment="KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf"
+Environment="KUBELET_CONFIG_ARGS=--config=/var/lib/kubelet/config.yaml"
+# This is a file that "kubeadm init" and "kubeadm join" generates at runtime, populating the KUBELET_KUBEADM_ARGS variable dynamically
+EnvironmentFile=-/var/lib/kubelet/kubeadm-flags.env
+# This is a file that the user can use for overrides of the kubelet args as a last resort. Preferably, the user should use
+# the .NodeRegistration.KubeletExtraArgs object in the configuration files instead. KUBELET_EXTRA_ARGS should be sourced from this file.
+EnvironmentFile=-/etc/default/kubelet
+ExecStart=
+ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_CONFIG_ARGS $KUBELET_KUBEADM_ARGS $KUBELET_EXTRA_ARGS
+```
+
+4. If any change is needed in the config file then
+
+```bash
+node01 $ systemctl daemon-reload & systemctl restart kubelet
+[1] 34600
+Warning: The unit file, source configuration file or drop-ins of kubelet.service changed on disk. Run 'systemctl daemon-reload' to reload units.
+```
