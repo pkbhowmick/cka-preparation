@@ -564,3 +564,140 @@ spec:
 
 Doc Ref: https://kubernetes.io/docs/concepts/configuration/secret/
 
+### Scenario-13
+
+Question: Create a `Static Pod` with image `nginx:alpine` and have resource requests for `10m` CPU and `20Mi` memory.
+Create a NodePort service to expose that static Pod on port 80 and check it has endpoints and reachablt through the internal ip address.
+
+Solution:
+
+1. Get a pod yaml using dry-run:
+
+```bash
+controlplane $ k run static-pod --image=nginx:alpine --dry-run=client -o yaml > 13.yaml
+controlplane $ cat 13.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    run: static-pod
+  name: static-pod
+spec:
+  containers:
+  - image: nginx:alpine
+    name: static-pod
+    resources: {}
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+status: {}
+```
+
+2. Setting up resource request accordingly:
+
+```bash
+controlplane $ cat 13.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    run: static-pod
+  name: static-pod
+spec:
+  containers:
+  - image: nginx:alpine
+    name: static-pod
+    resources: 
+      requests:
+        cpu: 10m
+        memory: 20Mi
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+status: {}
+```
+
+3. Create the pod. As this is a static pod, we just need to put this inside manifests folder. Pod will be automatically created.
+
+```bash
+controlplane $ pwd
+/etc/kubernetes/manifests
+controlplane $ cat static-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    run: static-pod
+  name: static-pod
+spec:
+  containers:
+  - image: nginx:alpine
+    name: static-pod
+    resources: 
+      requests:
+        cpu: 10m
+        memory: 20Mi
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+controlplane $ k get pods
+NAME                      READY   STATUS    RESTARTS   AGE
+static-pod-controlplane   1/1     Running   0          91s
+```
+
+4. Create the NodePort service and check the Endpoint
+
+```bash
+controlplane $ k expose pod static-pod-controlplane --port=80 --type=NodePort
+service/static-pod-controlplane exposed
+controlplane $ k get svc
+NAME                      TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
+kubernetes                ClusterIP   10.96.0.1      <none>        443/TCP        6d23h
+static-pod-controlplane   NodePort    10.109.9.187   <none>        80:32032/TCP   5s
+controlplane $ k get ep 
+NAME                      ENDPOINTS         AGE
+kubernetes                172.30.1.2:6443   6d23h
+static-pod-controlplane   192.168.0.7:80    15s
+controlplane $ k get pods -o wide
+NAME                      READY   STATUS    RESTARTS   AGE     IP            NODE           NOMINATED NODE   READINESS GATES
+static-pod-controlplane   1/1     Running   0          2m55s   192.168.0.7   controlplane   <none>           <none>
+```
+
+5. Check the service is accessible via NodePort:
+
+```bash
+controlplane $ k get nodes -o wide
+NAME           STATUS   ROLES           AGE     VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME
+controlplane   Ready    control-plane   6d23h   v1.28.4   172.30.1.2    <none>        Ubuntu 20.04.5 LTS   5.4.0-131-generic   containerd://1.6.12
+node01         Ready    <none>          6d23h   v1.28.4   172.30.2.2    <none>        Ubuntu 20.04.5 LTS   5.4.0-131-generic   containerd://1.6.12
+controlplane $ curl 172.30.1.2:32032
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+html { color-scheme: light dark; }
+body { width: 35em; margin: 0 auto;
+font-family: Tahoma, Verdana, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.</p>
+
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+Commercial support is available at
+<a href="http://nginx.com/">nginx.com</a>.</p>
+
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+```
+
+Doc Ref:
+- https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+- https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/
+
+
