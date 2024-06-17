@@ -736,3 +736,115 @@ node01 $ systemctl start kubelet
 ```
 
 Docs: https://kubernetes.io/docs/reference/setup-tools/kubeadm/kubeadm-token/
+
+### Scenario-15 (PV & PVC)
+
+Question: Create a PV and PVC. Use it in a Deployment.
+Given that:
+PV name: web-pv, capacity: 2Gi, hostPath: /vol/data, accessMode: ReadWriteOnce, no Storage class defined
+PVC name: web-pvc, ns: production, capacity: 2Gi, accessMode: ReadWriteOnce, no Storage class defined
+Deployment name: web-deploy, ns: production, image: nginx:1.14.2, Volume mount path: /tmp/web-data
+
+Solution:
+
+1. Create the PV
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: web-pv
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/vol/data"
+```
+
+```bash
+controlplane $ k apply -f 15-pv.yaml
+persistentvolume/web-pv created
+controlplane $ k get pv
+NAME     CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM   STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
+web-pv   2Gi        RWO            Retain           Available                          <unset>                          13s
+```
+
+2. Create PVC
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: web-pvc
+  namespace: production
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+```
+
+```bash
+controlplane $ k create ns production
+namespace/production created
+controlplane $ k apply -f 15-pvc.yaml
+persistentvolumeclaim/web-pvc created
+controlplane $ k get pvc -n production
+NAME      STATUS    VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+web-pvc   Pending                                      local-path     <unset>                 8s
+```
+
+3. Create deployment
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  namespace: production
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+           claimName: web-pvc
+      containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - mountPath: "/tmp/web-data"
+          name: data
+```
+
+```bash
+controlplane $ k apply -f 15-dpl.yaml
+deployment.apps/nginx-deployment created
+controlplane $ k get deploy -n production
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+nginx-deployment   0/3     3            0           9s
+controlplane $ k get pvc -n production
+NAME      STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+web-pvc   Bound    pvc-badf3c7e-413b-4907-93ad-2aeff2e626d3   2Gi        RWO            local-path     <unset>                 5m38s
+controlplane $ k get pods -n production
+NAME                                READY   STATUS    RESTARTS   AGE
+nginx-deployment-5f599f4f8b-7jfpz   1/1     Running   0          35s
+nginx-deployment-5f599f4f8b-dn9lw   1/1     Running   0          35s
+nginx-deployment-5f599f4f8b-ftff5   1/1     Running   0          35s
+```
