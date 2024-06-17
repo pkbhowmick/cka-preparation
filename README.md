@@ -701,3 +701,38 @@ Doc Ref:
 - https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/
 
 
+### Scenario-14 (Join a node to the Cluster)
+
+Question: Please join `node01` worker node to the cluster, and you have to deploy a pod in the `node01`, pod name should be `web` and image should be `nginx`.
+
+Solution: 
+
+1. Get a join command from the controlplane node:
+
+```bash
+controlplane $ kubeadm token create --print-join-command
+kubeadm join 172.30.1.2:6443 --token e2ohcp.trxxo6qxxzriqmwe --discovery-token-ca-cert-hash sha256:533673b654759980b932c982ffe4fb647dab69687385004889743982ff9f8eee 
+```
+
+2. ssh to node01 and run the join command
+
+```bash
+node01 $ kubeadm join 172.30.1.2:6443 --token e2ohcp.trxxo6qxxzriqmwe --discovery-token-ca-cert-hash sha256:533673b654759980b932c982ffe4fb647dab69687385004889743982ff9f8eee 
+[preflight] Running pre-flight checks
+error execution phase preflight: [preflight] Some fatal errors occurred:
+        [ERROR FileAvailable--etc-kubernetes-kubelet.conf]: /etc/kubernetes/kubelet.conf already exists
+        [ERROR Port-10250]: Port 10250 is in use
+        [ERROR FileAvailable--etc-kubernetes-pki-ca.crt]: /etc/kubernetes/pki/ca.crt already exists
+[preflight] If you know what you are doing, you can make a check non-fatal with `--ignore-preflight-errors=...`
+To see the stack trace of this error execute with --v=5 or higher
+```
+note: you can ignore those error but always go to check
+
+3. Check the kubelet status and if not running run it
+
+```bash
+node01 $ systemctl status kubelet
+node01 $ systemctl start kubelet
+```
+
+Docs: https://kubernetes.io/docs/reference/setup-tools/kubeadm/kubeadm-token/
