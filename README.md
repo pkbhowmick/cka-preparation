@@ -848,3 +848,64 @@ nginx-deployment-5f599f4f8b-7jfpz   1/1     Running   0          35s
 nginx-deployment-5f599f4f8b-dn9lw   1/1     Running   0          35s
 nginx-deployment-5f599f4f8b-ftff5   1/1     Running   0          35s
 ```
+
+### Scenario-16 (DaemonSet)
+
+Question: Create a DaemonSet and it should run all nodes including control-plane. Maintains:
+name: daemon-imp, namespace: project-1, image: httpd:2.4-alpine, labels: id=daemon-imp, resouce request: 20 millicore cpu, 20 mi memory
+
+Solution:
+
+1. Prepare the yaml and create the daemonset:
+
+```yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: daemon-imp
+  namespace: project-1
+  labels:
+    id: daemon-imp
+spec:
+  selector:
+    matchLabels:
+      id: daemon-imp
+  template:
+    metadata:
+      labels:
+        id: daemon-imp
+    spec:
+      tolerations:
+      # these tolerations are to have the daemonset runnable on control plane nodes
+      # remove them if your control plane nodes should not run pods
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: httpd
+        image: httpd:2.4-alpine
+        resources:
+          requests:
+            cpu: 20m
+            memory: 20Mi
+```
+
+```bash
+controlplane $ k create ns project-1
+namespace/project-1 created
+controlplane $ k apply -f 16.yaml
+daemonset.apps/daemon-imp created
+controlplane $ k get nodes
+NAME           STATUS   ROLES           AGE   VERSION
+controlplane   Ready    control-plane   10d   v1.30.0
+node01         Ready    <none>          10d   v1.30.0
+controlplane $ k get pods -n project-1
+NAME               READY   STATUS    RESTARTS   AGE
+daemon-imp-7nbt2   1/1     Running   0          13s
+daemon-imp-82mz6   1/1     Running   0          13s
+```
+
+### Scenario-17 ()
